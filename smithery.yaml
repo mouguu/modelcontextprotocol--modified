@@ -15,3 +15,6 @@ configSchema:
     PERPLEXITY_TIMEOUT_MS:
       type: "string"
       description: "Request timeout in milliseconds (default: 300000)"
+    MCP_SERVER_API_KEY:
+      type: "string"
+      description: "Optional: Set a password to protect this MCP server from unauthorized access"
