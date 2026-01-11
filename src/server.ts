@@ -316,7 +316,7 @@ export function createPerplexityServer() {
           )
           .describe("Array of conversation messages"),
         model: z
-          .enum(["sonar", "sonar-pro", "sonar-reasoning"])
+          .enum(["sonar", "gpt-5.2-search", "claude-4.5-sonnet-think-search", "gemini-3-pro-search"])
           .optional()
           .describe("Model to use (default: sonar for speed)"),
       },
