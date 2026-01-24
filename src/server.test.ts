@@ -57,7 +57,7 @@ describe("Server Utility Functions", () => {
     });
   });
 
-  });
+
 
   describe("cleanMessageContent", () => {
     it("should remove leading spaces in link URL", () => {
