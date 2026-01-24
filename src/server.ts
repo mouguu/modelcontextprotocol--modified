@@ -113,6 +113,38 @@ export function stripThinkingTokens(content: string): string {
 }
 
 /**
+ * Cleans the message content to fix common Markdown link issues.
+ *
+ * @param {string} content - The content to clean
+ * @returns {string} The cleaned content
+ */
+export function cleanMessageContent(content: string): string {
+  if (!content) return content;
+
+  // 1. 核心修复：移除链接 URL 前面的空格
+  // 针对错误：[Title]( https://...) -> [Title](https://...)
+  content = content.replace(/\]\(\s+(https?:\/\/|data:)/gi, "]($1");
+
+  // 2. 修复可能出现的双重协议头
+  // 针对错误：[Title](https:// https://...) -> [Title](https://...)
+  content = content.replace(/\]\(https?:\/\/\s*https?:\/\//gi, "](https://");
+
+  // 3. 修复 URL 中间的非法空格 (将空格替换为 %20)
+  // 针对错误：[Title](https://example.com/foo bar) -> [Title](https://example.com/foo%20bar)
+  // 注意：这个正则比较保守，只匹配 http 开头到右括号之间的内容
+  content = content.replace(
+    /(\]\(https?:\/\/[^\)]+?)\s+([^\)]+?\))/g,
+    "$1%20$2",
+  );
+
+  // 4. (可选) 移除所有空的 Markdown 链接，防止渲染空框
+  // 针对错误：[Title]() 或 [Title]( )
+  content = content.replace(/\[([^\]]+)\]\(\s*\)/g, "$1");
+
+  return content;
+}
+
+/**
  * Performs a chat completion by sending a request to the Perplexity API.
  * Appends citations to the returned message content if they exist.
  *
@@ -232,14 +264,11 @@ export async function performChatCompletion(
     });
   }
 
-  // Fix Markdown rendering error: remove extra spaces before URLs in links
-  // This prevents "Scheme contains illegal characters" error in some Markdown renderers
+  // ================= 强力修复代码开始 =================
   if (messageContent) {
-    messageContent = messageContent.replace(
-      /\]\(\s+(https?:\/\/|data:)/gi,
-      "]($1",
-    );
+    messageContent = cleanMessageContent(messageContent);
   }
+  // ================= 强力修复代码结束 =================
 
   return messageContent;
 }
