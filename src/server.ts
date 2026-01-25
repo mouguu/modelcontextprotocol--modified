@@ -121,25 +121,22 @@ export function stripThinkingTokens(content: string): string {
 export function cleanMessageContent(content: string): string {
   if (!content) return content;
 
-  // 1. 核心修复：移除链接 URL 前面的空格
-  // 针对错误：[Title]( https://...) -> [Title](https://...)
-  content = content.replace(/\]\(\s+(https?:\/\/|data:)/gi, "]($1");
+  // 1. 修复 ] 和 ( 之间的空格: [Title] (url) -> [Title](url)
+  content = content.replace(/\]\s+\(/g, "](");
 
-  // 2. 修复可能出现的双重协议头
-  // 针对错误：[Title](https:// https://...) -> [Title](https://...)
-  content = content.replace(/\]\(https?:\/\/\s*https?:\/\//gi, "](https://");
+  // 2. 修复 ( 之后的空格: [Title]( https://) -> [Title](https://)
+  content = content.replace(/\]\(\s+/g, "](");
 
-  // 3. 修复 URL 中间的非法空格 (将空格替换为 %20)
-  // 针对错误：[Title](https://example.com/foo bar) -> [Title](https://example.com/foo%20bar)
-  // 注意：这个正则比较保守，只匹配 http 开头到右括号之间的内容
+  // 3. 修复双重协议头: https://https:// -> https://
+  content = content.replace(/https?:\/\/\s*https?:\/\//gi, "https://");
+
+  // 4. 修复 URL 内部的空格 (编码为 %20)
+  // 这里的逻辑是：匹配 ]( 到 ) 之间的内容，如果中间有空格，简单粗暴处理一下
+  // 注意：这个正则处理简单情况，复杂情况可能需要更严谨的 URL 编码库，但对 pplx 够用了
   content = content.replace(
     /(\]\(https?:\/\/[^\)]+?)\s+([^\)]+?\))/g,
     "$1%20$2",
   );
-
-  // 4. (可选) 移除所有空的 Markdown 链接，防止渲染空框
-  // 针对错误：[Title]() 或 [Title]( )
-  content = content.replace(/\[([^\]]+)\]\(\s*\)/g, "$1");
 
   return content;
 }
@@ -320,8 +317,8 @@ export async function performSearch(
   // 偷梁换柱逻辑
   const searchMessages: Message[] = [{ role: "user", content: query }];
 
-  // 强制调用 gemini-3-pro-search，因为它在多步搜索上表现极佳
-  return await performChatCompletion(searchMessages, "gemini-3-pro-search");
+  // 强制调用 sonar-pro，它联网搜索能力很强
+  return await performChatCompletion(searchMessages, "sonar-pro");
 }
 
 /**
@@ -361,9 +358,11 @@ export function createPerplexityServer() {
         model: z
           .enum([
             "sonar",
-            "gpt-5.2-search",
-            "claude-4.5-sonnet-think-search",
-            "gemini-3-pro-search",
+            "sonar-pro",
+            "sonar-reasoning",
+            "sonar-reasoning-pro",
+            "claude-4.5-sonnet",
+            "gpt-4o",
           ])
           .optional()
           .describe("Model to use (default: sonar for speed)"),
@@ -436,8 +435,10 @@ export function createPerplexityServer() {
       strip_thinking?: boolean;
     }) => {
       validateMessages(messages, "perplexity_research");
-      // 强制使用 GPT-5.2 联网版
-      const result = await performChatCompletion(messages, "gpt-5.2-search");
+
+      // 使用 sonar-pro 作为强大的搜索模型
+      const result = await performChatCompletion(messages, "sonar-pro");
+
       return {
         content: [{ type: "text", text: result }],
         structuredContent: { response: result },
@@ -490,12 +491,14 @@ export function createPerplexityServer() {
       strip_thinking?: boolean;
     }) => {
       validateMessages(messages, "perplexity_reason");
-      // 强制使用 Claude 4.5 Sonnet Thinking 联网版
+
+      // 使用 sonar-reasoning-pro 进行推理
       const result = await performChatCompletion(
         messages,
-        "claude-4.5-sonnet-think-search",
+        "sonar-reasoning-pro",
         !!strip_thinking,
       );
+
       return {
         content: [{ type: "text", text: result }],
         structuredContent: { response: result },
